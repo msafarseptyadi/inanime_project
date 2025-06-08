@@ -7,18 +7,24 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import React, { useContext } from "react";
 import { ValueContext } from "@/contexts/ValueContext";
-
+import useOnlineStatus from "@/hooks/useOnlineStatus";
 
 export default function Navbar(){
     const [isOpen, setIsOpen] = useState(false);
     const pathname = usePathname();
     const isAnimeDetail = pathname.startsWith('/anime/');
     const { sharedValue } = useContext(ValueContext);
+    const online = useOnlineStatus();
     const headerImage = isAnimeDetail && sharedValue
     ? sharedValue
     : "https://s4.anilist.co/file/anilistcdn/media/anime/banner/178025-KH3NSrRChfGy.jpg";
     return(
         <>
+        {!online && (
+            <div className={`fixed z-1000 top-0 w-full text-center py-2 bg-red-500 text-white`}>
+                You are offline
+            </div>
+        )}
         <header className={`relative h-100 bg-cover bg-center`} style={{ backgroundImage: `url(${headerImage})` }}>     
             <div className="absolute inset-0 bg-black/50"></div>
             <nav className="bg-white border-gray-200 dark:bg-gray-900 z-100 relative">

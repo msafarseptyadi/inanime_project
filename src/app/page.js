@@ -12,7 +12,7 @@ export default function Home() {
     const [genres, setGenres] = useState([]);
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
-     const [loadingFirst, setLoadingFirst] = useState(true);
+    const [loadingFirst, setLoadingFirst] = useState(true);
     const [hasMore, setHasMore] = useState(true);
     const [selectedGenre, setSelectedGenre] = useState("");
 
@@ -116,7 +116,7 @@ export default function Home() {
     const loader = useRef(null);
     const handleObserver = useCallback((entries) => {
     const target = entries[0];
-        if (target.isIntersecting && hasMore && !loading) {
+        if (target.isIntersecting && hasMore && !loading && online) {
             fetchAnime(page);
         }
     }, [hasMore, loading]);
@@ -137,10 +137,9 @@ export default function Home() {
     }, [handleObserver]);
 
     useEffect(() => {
-        setAnimeList([]);   // reset data
-        setPage(1);         // reset page
-        setHasMore(true);   // reset infinite scroll
-        console.log("test masuk sini");
+        setAnimeList([]);   
+        setPage(1);        
+        setHasMore(true);  
         fetchAnime(1, true);
     }, [selectedGenre, fetchAnime]);
 
