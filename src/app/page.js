@@ -8,44 +8,79 @@ import { useState, useRef, useCallback, useEffect } from "react";
 
 export default function Home() {
     const [animeList, setAnimeList] = useState([]);
+    const [genres, setGenres] = useState([]);
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [hasMore, setHasMore] = useState(true);
+    const [selectedGenre, setSelectedGenre] = useState("");
 
     const fetchAnime = useCallback(async (currentPage, reset = false) => {
-        setLoading(true);
-        
-        const query = `
-            query ($page: Int, $perPage: Int) {
-            Page(page: $page, perPage: $perPage) {
-                pageInfo { hasNextPage }
-                media(type: ANIME) {
-                id title { romaji english }
-                coverImage { large color }
-                description
-                bannerImage
-                genres
-                averageScore
-                }
+    setLoading(true);
+    const queryWithGenre = `
+        query ($page: Int, $perPage: Int, $genre: String) {
+        Page(page: $page, perPage: $perPage) {
+            pageInfo { hasNextPage }
+            media(type: ANIME, genre_in: [$genre]) {
+            id title { romaji english }
+            coverImage { large color }
+            description
+            bannerImage
+            genres
+            averageScore
             }
+        }
         }`;
 
-        const variables = {
-            page: currentPage, 
-            perPage: 9
+    const queryWithoutGenre = `
+        query ($page: Int, $perPage: Int) {
+        Page(page: $page, perPage: $perPage) {
+            pageInfo { hasNextPage }
+            media(type: ANIME) {
+            id title { romaji english }
+            coverImage { large color }
+            description
+            bannerImage
+            genres
+            averageScore
+            }
+        }
+        }`;
+
+    const query = selectedGenre ? queryWithGenre : queryWithoutGenre;
+    const variables = { page: currentPage, perPage: 9 };
+    if (selectedGenre && selectedGenre !== "0") {
+        variables.genre = selectedGenre;
+    }
+
+    try {
+        const data = await getAnimeResponse(query, variables);
+        setAnimeList(prev => reset ? data.Page.media : [...prev, ...data.Page.media]);
+        setHasMore(data.Page.pageInfo.hasNextPage);
+        setPage(currentPage + 1);
+    } catch (error) {
+        console.error(error);
+    } finally {
+        setLoading(false);
+    }
+    }, [selectedGenre]);
+
+    useEffect(() => {
+        const fetchGenres = async () => {
+            const query = `query { genres: GenreCollection }`;
+            try {
+                const data = await getAnimeResponse(query);
+                setGenres(data.genres);
+            } catch (error) {
+                console.error("Error fetching genres:", error);
+            }
         };
 
-        try {
-            const data = await getAnimeResponse(query, variables);
-            setAnimeList(prev => reset ? data.Page.media : [...prev, ...data.Page.media]);
-            setHasMore(data.Page.pageInfo.hasNextPage);
-            setPage(currentPage + 1);
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
-    });
+        fetchGenres();
+    }, []);
+
+    const handleGenreChange = (selectedGenre) => {
+        setSelectedGenre(selectedGenre);
+    };
 
     const loader = useRef(null);
     const handleObserver = useCallback((entries) => {
@@ -76,7 +111,7 @@ export default function Home() {
         setHasMore(true);   // reset infinite scroll
         console.log("test masuk sini");
         fetchAnime(1, true);
-    }, []);
+    }, [selectedGenre, fetchAnime]);
 
     const animeTrendings = [
         {
@@ -143,7 +178,7 @@ export default function Home() {
                 <AnimeList data={animeTrendings} />
             </div>
             <div className="container mx-auto p-4 mb-100">
-                <Header title={'Anime'} color={'text-black'} filter={true}/>
+                <Header title={'Anime'} color={'text-black'} filter={true} genres={genres} onGenreChange={handleGenreChange}/>
                 <AnimeList data={animeList} />
                 {loading && (
                     <div className="grid
@@ -155,7 +190,7 @@ export default function Home() {
                                 w-full
                                 min-w-0
                                 mt-5">
-                    {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
+                    {Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)}
                     </div>
                 )}
                 <div ref={loader} />
