@@ -1,107 +1,166 @@
+"use client";
+
 import AnimeList from "@/components/AnimeList"
 import Header from "@/components/AnimeList/Header";
+import SkeletonCard from "@/components/Utilities/Skeleton";
+import { getAnimeResponse } from "@/libs/api";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 export default function Home() {
+    const [animeList, setAnimeList] = useState([]);
+    const [page, setPage] = useState(1);
+    const [loading, setLoading] = useState(true);
+    const [hasMore, setHasMore] = useState(true);
 
-  const animeTrendings = [
-  {
-      id: 1,
-      title: "Noteworthy technology acquisitions 2021",
-      description: "Here are the biggest enterprise technology acquisitions of 2021 so far, in reverse chronological order.",
-      image: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx1-GCsPm7waJ4kS.png",
-      tags: ["photography", "travel", "winter"],
-      color:"#0d93e4",
-      score: 86
-  },
-  {
-      id: 2,
-      title: "Another anime",
-      description: "This is another anime description.",
-      image: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx1-GCsPm7waJ4kS.png",
-      tags: ["adventure", "fantasy"],
-      color:"#0d93e4",
-      score: 70
-  },
-  {
-      id: 2,
-      title: "Another anime",
-      description: "This is another anime description.",
-      image: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx1-GCsPm7waJ4kS.png",
-      tags: ["adventure", "fantasy"],
-      color:"#f1bb5d",
-      score: 60
-  },
-  ];
+    const fetchAnime = useCallback(async (currentPage, reset = false) => {
+        setLoading(true);
+        
+        const query = `
+            query ($page: Int, $perPage: Int) {
+            Page(page: $page, perPage: $perPage) {
+                pageInfo { hasNextPage }
+                media(type: ANIME) {
+                id title { romaji english }
+                coverImage { large color }
+                description
+                bannerImage
+                genres
+                averageScore
+                }
+            }
+        }`;
 
-  const animes = [
-    {
-        id: 1,
-        title: "Noteworthy technology acquisitions 2021",
-        description: "Here are the biggest enterprise technology acquisitions of 2021 so far, in reverse chronological order.",
-        image: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx1-GCsPm7waJ4kS.png",
-        tags: ["photography", "travel", "winter"],
-        color:"#0d93e4",
-        score: 86
-    },
-    {
-        id: 2,
-        title: "Another anime",
-        description: "This is another anime description.",
-        image: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx1-GCsPm7waJ4kS.png",
-        tags: ["adventure", "fantasy"],
-        color:"#0d93e4",
-        score: 70
-    },
-    {
-        id: 2,
-        title: "Another anime",
-        description: "This is another anime description.",
-        image: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx1-GCsPm7waJ4kS.png",
-        tags: ["adventure", "fantasy"],
-        color:"#f1bb5d",
-        score: 60
-    },
-    {
-        id: 1,
-        title: "Noteworthy technology acquisitions 2021",
-        description: "Here are the biggest enterprise technology acquisitions of 2021 so far, in reverse chronological order.",
-        image: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx1-GCsPm7waJ4kS.png",
-        tags: ["photography", "travel", "winter"],
-        color:"#0d93e4",
-        score: 86
-    },
-    {
-        id: 2,
-        title: "Another anime",
-        description: "This is another anime description.",
-        image: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx1-GCsPm7waJ4kS.png",
-        tags: ["adventure", "fantasy"],
-        color:"#0d93e4",
-        score: 70
-    },
-    {
-        id: 2,
-        title: "Another anime",
-        description: "This is another anime description.",
-        image: "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx1-GCsPm7waJ4kS.png",
-        tags: ["adventure", "fantasy"],
-        color:"#f1bb5d",
-        score: 60
-    },
-  ];
+        const variables = {
+            page: currentPage, 
+            perPage: 9
+        };
 
-  return (
-    <section>
-        <div className="absolute mx-auto w-full">
-          <div className="container mx-auto -mt-35 p-4">
-              <Header title={'Trending Now'} color={'text-white'} filter={false}/>
-              <AnimeList data={animeTrendings} />
-          </div>
-          <div className="container mx-auto p-4">
-              <Header title={'Anime'} color={'text-black'} filter={true}/>
-              <AnimeList data={animes} />
-          </div>
-        </div>
-    </section>
-  );
+        try {
+            const data = await getAnimeResponse(query, variables);
+            setAnimeList(prev => reset ? data.Page.media : [...prev, ...data.Page.media]);
+            setHasMore(data.Page.pageInfo.hasNextPage);
+            setPage(currentPage + 1);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    });
+
+    const loader = useRef(null);
+    const handleObserver = useCallback((entries) => {
+    const target = entries[0];
+        if (target.isIntersecting && hasMore && !loading) {
+            fetchAnime(page);
+        }
+    }, [hasMore, loading]);
+
+    useEffect(() => {
+        const option = {
+            root: null,
+            rootMargin: '20px',
+            threshold: 1
+        };
+
+        const observer = new IntersectionObserver(handleObserver, option);
+            if (loader.current) observer.observe(loader.current);
+
+            return () => {
+            if (loader.current) observer.unobserve(loader.current);
+            };
+    }, [handleObserver]);
+
+    useEffect(() => {
+        setAnimeList([]);   // reset data
+        setPage(1);         // reset page
+        setHasMore(true);   // reset infinite scroll
+        console.log("test masuk sini");
+        fetchAnime(1, true);
+    }, []);
+
+    const animeTrendings = [
+        {
+          "id": 156092,
+          "title": {
+            "english": "To Be Hero X",
+            "romaji": "Tu Bian Yingxiong X"
+          },
+          "description": "This is a world where heroes are created by people's trust, and the hero who gains the most trust is known as X. In this world, people's trust can be quantified through data, and these values are reflected on everyone's wrist. As long as one gains enough trust points, an ordinary person can possess superpowers and become a superhero who saves the world. However, the constantly changing trust values make the path of a hero full of uncertainties...\n<br><br>\n(Source: Official To Be Hero X home page)",
+          "genres": [
+            "Action",
+            "Drama",
+            "Mystery",
+            "Supernatural"
+          ],
+          "averageScore": 83,
+          "coverImage": {
+            "large": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx156092-yHqgQZOF2mbg.jpg"
+          }
+        },
+        {
+          "id": 180367,
+          "title": {
+            "english": "WITCH WATCH",
+            "romaji": "Witch Watch"
+          },
+          "description": "Morihito Otogi, a high school student who comes from a lineage of ogres, enjoys a peaceful, ordinary life until his childhood friend, Nico, moves in with him. Nico is a witch-in-training, and chooses Morihito to be her familiar. While Nico is thrilled to reunite with her old friend and crush, Morihito is tasked with the perilous duty to protect her from a foretold calamity. Between the unpredictable chaos caused by Nico’s magic, and the awkwardness of sharing a home, their lives become a whirlwind of supernatural hijinks and threats.\n<br><br>\n(Source: Crunchyroll) <br><br>\n\n<i>Notes: <br>\n- Worldwide premiere of Episodes 1-3 titled as <b>WITCH WATCH: WATCH PARTY</b> before the Japanese premiere was pre-screened in advance in theaters on March 16, 2025 in North America by GKIDS Films and March 22 and 23 in Europe by Animation Digital Network. <br>\n- Episodes 1-2 + a selection of stories (Cat Scout, Kanshi's Part Time Job Diaries ~ The Side Job ~, and Kan & Nico's Channel) was pre-screened in advance in theaters on March 30, 2025 in Japan. The regular TV broadcast began April 6, 2025.</i>",
+          "genres": [
+            "Comedy",
+            "Drama",
+            "Fantasy",
+            "Romance",
+            "Slice of Life",
+            "Supernatural"
+          ],
+          "averageScore": 73,
+          "coverImage": {
+            "large": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx180367-GlRuB2lG7Kaa.jpg"
+          }
+        },
+        {
+          "id": 176301,
+          "title": {
+            "english": "The Apothecary Diaries Season 2",
+            "romaji": "Kusuriya no Hitorigoto 2nd Season"
+          },
+          "description": "The second season of <i>Kusuriya no Hitorigoto</i>.<br><br>\n\nMaomao and Jinshi face palace intrigue as a pregnant concubine's safety and a looming conspiracy collide.<br><br>\n\n(Source: Crunchyroll News)",
+          "genres": [
+            "Drama",
+            "Mystery"
+          ],
+          "averageScore": 87,
+          "coverImage": {
+            "large": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx176301-TIGmldLffQGX.jpg"
+          }
+        },
+    ];
+
+    return (
+        <section>
+            <div className="absolute mx-auto w-full">
+            <div className="container mx-auto -mt-35 p-4">
+                <Header title={'Trending Now'} color={'text-white'} filter={false}/>
+                <AnimeList data={animeTrendings} />
+            </div>
+            <div className="container mx-auto p-4 mb-100">
+                <Header title={'Anime'} color={'text-black'} filter={true}/>
+                <AnimeList data={animeList} />
+                {loading && (
+                    <div className="grid
+                                gap-4
+                                grid-cols-[repeat(3,minmax(390px,500px))]
+                                max-[1345px]:grid-cols-2
+                                max-[768px]:grid-cols-1
+                                justify-center
+                                w-full
+                                min-w-0
+                                mt-5">
+                    {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
+                    </div>
+                )}
+                <div ref={loader} />
+            </div>
+            </div>
+        </section>
+    );
 }
