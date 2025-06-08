@@ -10,6 +10,7 @@ export default function Page(){
     const { setSharedValue } = useContext(ValueContext);
     const params = useParams();
     const id = params.id;
+    const [isBookmarked, setIsBookmarked] = useState(false);
 
     const [animeDetail, setAnimeDetail] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -64,6 +65,12 @@ export default function Page(){
     
     }, [setSharedValue]);
 
+    useEffect(() => {
+        const savedBookmarks = JSON.parse(localStorage.getItem("bookmarks")) || [];
+        const bookmarked = savedBookmarks.some(item => item.id === parseInt(id, 10));
+        setIsBookmarked(bookmarked);
+    }, [id]);
+
     const AnimeScoreBadge = ({ averageScore }) => {
         let icon;
         let color;
@@ -86,6 +93,20 @@ export default function Page(){
         );
     };
 
+    const handleBookmark = () => {
+        const savedBookmarks = JSON.parse(localStorage.getItem("bookmarks")) || [];
+        const alreadyBookmarked = savedBookmarks.find((item) => item.id === animeDetail.id);
+
+        if (!alreadyBookmarked) {
+            savedBookmarks.push(animeDetail);
+            localStorage.setItem("bookmarks", JSON.stringify(savedBookmarks));
+            setIsBookmarked(true);
+            alert("Added to bookmarks!");
+        } else {
+            alert("Already bookmarked.");
+        }
+    };
+
     if (loading) {
         return <p className="text-center py-5">Loading...</p>;
     }else{
@@ -102,7 +123,7 @@ export default function Page(){
                             width={265}
                             height={370}
                         />
-                        <button type="button" className={`text-gray-800 hover:bg-[#f6ad12]/80 cursor-pointer bg-[#f6ad12] transition font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mt-2 w-full`}><i className="fa-solid fa-bookmark me-2"></i> Bookmark</button>
+                        <button disabled={isBookmarked} onClick={handleBookmark} type="button" className={`text-gray-800 ${isBookmarked ? "opacity-50 cursor-not-allowed" : "hover:bg-[#f6ad12]/80 cursor-pointer"} bg-[#f6ad12] transition font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mt-2 w-full`}><i className="fa-solid fa-bookmark me-2"></i> {isBookmarked ? "Bookmarked!" : "Bookmark"}</button>
                     </div>
                     <div className="p-4 w-full">
                         <h1 className="text-2xl mb-3 font-bold">{animeDetail.title.english??animeDetail.title.romaji}</h1>
