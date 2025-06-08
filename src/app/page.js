@@ -5,6 +5,7 @@ import Header from "@/components/AnimeList/Header";
 import SkeletonCard from "@/components/Utilities/Skeleton";
 import { getAnimeResponse } from "@/libs/api";
 import { useState, useRef, useCallback, useEffect } from "react";
+import useOnlineStatus from "@/hooks/useOnlineStatus";
 
 export default function Home() {
     const [animeList, setAnimeList] = useState([]);
@@ -15,6 +16,7 @@ export default function Home() {
     const [loadingFirst, setLoadingFirst] = useState(true);
     const [hasMore, setHasMore] = useState(true);
     const [selectedGenre, setSelectedGenre] = useState("");
+    const online = useOnlineStatus();
 
     const fetchAnime = useCallback(async (currentPage, reset = false) => {
     setLoading(true);
